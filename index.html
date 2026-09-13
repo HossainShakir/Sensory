@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sensory Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#1E5F6E; --mid:#4FA6A6; --pale:#BFEAE3; --foam:#F4FBF9; --sun:#FFD98E;
+    --lavender:#E4D9F5; --navy:#1B2A4A; --coral:#FF8C69;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    font-family:'Baloo 2', system-ui, sans-serif; touch-action:manipulation; }
+
+  .view{ position:fixed; inset:0; display:none; }
+  .view.active{ }
+
+  /* ---------- Topbar ---------- */
+  #topbar{ position:fixed; top:0; left:0; right:0; height:64px; z-index:80;
+    display:none; align-items:center; justify-content:space-between; padding:0 16px; pointer-events:none; }
+  #topbar.show{ display:flex; }
+  #topbar button{ pointer-events:auto; border:none; cursor:pointer;
+    background:rgba(255,255,255,0.55); backdrop-filter:blur(6px);
+    box-shadow:0 2px 8px rgba(10,40,45,0.15); color:#20464F; font-family:inherit; }
+  #back-btn{ border-radius:999px; padding:10px 20px; font-size:1rem; font-weight:700; }
+  #sound-toggle{ width:52px; height:52px; border-radius:50%; font-size:1.35rem;
+    display:flex; align-items:center; justify-content:center; }
+  button:focus-visible{ outline:4px solid var(--sun); outline-offset:2px; }
+
+  /* ---------- Home ---------- */
+  #home{ flex-direction:column; align-items:center; justify-content:center; gap:22px;
+    background:radial-gradient(circle at 30% 22%, var(--pale), var(--lavender) 75%);
+    text-align:center; padding:24px; }
+  #home.active{ display:flex; }
+  #home h1{ margin:0; font-size:2.4rem; color:var(--deep); font-weight:700; }
+  #home p{ margin:0; font-size:1.15rem; color:#3B6B72; }
+  #cards{ display:flex; flex-wrap:wrap; justify-content:center; gap:20px; max-width:620px; }
+  .card{ width:150px; height:170px; border:none; border-radius:38% 62% 55% 45% / 45% 40% 60% 55%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    cursor:pointer; box-shadow:0 8px 18px rgba(20,50,60,0.18); transition:transform .15s ease; }
+  .card:hover, .card:focus-visible{ transform:translateY(-4px) scale(1.04); }
+  .card .icon{ font-size:2.6rem; }
+  .card .label{ font-weight:700; font-size:1rem; }
+  #card-bubbles{ background:var(--mid); color:#08333A; transform:rotate(-3deg); }
+  #card-wrap{ background:#8FB8DE; color:#0E2A44; transform:rotate(2deg); }
+  #card-night{ background:var(--navy); color:#F4F1FF; transform:rotate(-1.5deg); }
+  #card-splash{ background:var(--coral); color:#4A1C0C; transform:rotate(2.5deg); }
+  #card-garden{ background:#F2A6C5; color:#5A1030; transform:rotate(-2deg); }
+
+  /* ---------- Shared hint ---------- */
+  .hint{ position:absolute; bottom:20px; left:0; right:0; text-align:center;
+    font-size:1.1rem; letter-spacing:.02em; pointer-events:none; transition:opacity 1s ease; }
+
+  /* ---------- Bubbles ---------- */
+  #screen-bubbles.active{ display:block; }
+  #screen-bubbles{ background:linear-gradient(180deg, var(--pale) 0%, var(--mid) 55%, var(--deep) 100%); }
+  #bub-stage{ position:absolute; inset:0; overflow:hidden; }
+  .rays{ position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(100deg, rgba(255,255,255,.10) 0%, transparent 12%),
+      linear-gradient(100deg, transparent 30%, rgba(255,255,255,.08) 34%, transparent 40%),
+      linear-gradient(100deg, transparent 60%, rgba(255,255,255,.06) 65%, transparent 72%); }
+  .bubble{ position:absolute; bottom:-140px; border:none; border-radius:50%; cursor:pointer; padding:0;
+    background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), rgba(255,255,255,.15) 40%, var(--bc,#cdeeee) 75%);
+    box-shadow:inset 0 0 12px rgba(255,255,255,.5), 0 4px 10px rgba(10,50,55,.15);
+    animation:rise linear forwards, bob ease-in-out infinite;
+    animation-duration:var(--rise-dur,14s), 2.4s; }
+  @keyframes rise{ from{ transform:translateY(0) translateX(0);} to{ transform:translateY(-118vh) translateX(var(--drift,20px)); } }
+  @keyframes bob{ 0%,100%{ margin-left:0; } 50%{ margin-left:14px; } }
+  .pop-burst{ position:absolute; width:10px; height:10px; border-radius:50%; background:var(--foam);
+    pointer-events:none; animation:burst .55s ease-out forwards; }
+  @keyframes burst{ from{ opacity:1; transform:translate(0,0) scale(1);} to{ opacity:0; transform:translate(var(--bx),var(--by)) scale(.3);} }
+  #screen-bubbles .hint{ color:rgba(255,255,255,.9); text-shadow:0 1px 3px rgba(0,0,0,.2); }
+
+  /* ---------- Bubble Wrap ---------- */
+  #screen-wrap.active{ display:flex; }
+  #screen-wrap{ background:linear-gradient(180deg,#DCEBF7,#8FB8DE); flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; padding:80px 20px 60px; }
+  #wrap-grid{ display:grid; grid-template-columns:repeat(8, minmax(28px,42px)); gap:10px; max-width:520px; }
+  .cell{ aspect-ratio:1/1; border:none; border-radius:50%; cursor:pointer;
+    background:radial-gradient(circle at 35% 30%, #FFFFFF, #BFDBF0 70%);
+    box-shadow:inset 0 0 6px rgba(255,255,255,.8), 0 2px 4px rgba(20,50,80,.25); }
+  .cell.popped{ background:#7FA8C9; box-shadow:inset 0 3px 6px rgba(10,30,50,.4); cursor:default; }
+  #wrap-reset{ border:none; border-radius:999px; padding:12px 26px; font-size:1rem; font-weight:700;
+    background:#0E2A44; color:#DCEBF7; cursor:pointer; }
+  #screen-wrap .hint{ color:#0E2A44; position:static; }
+
+  /* ---------- Night Sky ---------- */
+  #screen-night.active{ display:block; }
+  #screen-night{ background:radial-gradient(ellipse at 50% 0%, #24345E, var(--navy) 60%, #0C1830 100%); }
+  .star{ position:absolute; border-radius:50%; background:#FFF7D6; animation:twinkle ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{ opacity:.25; } 50%{ opacity:1; } }
+  .firefly{ position:absolute; width:14px; height:14px; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, #FFF3B0, #FFD98E 60%, transparent 75%);
+    box-shadow:0 0 14px 6px rgba(255,217,142,.7); animation:drift 3.6s ease-out forwards; }
+  @keyframes drift{ 0%{ opacity:0; transform:translate(0,0) scale(.6);} 15%{ opacity:1;}
+    100%{ opacity:0; transform:translate(var(--fx),var(--fy)) scale(1.1);} }
+  #screen-night .hint{ color:rgba(255,255,255,.85); }
+
+  /* ---------- Color Splash ---------- */
+  #screen-splash.active{ display:block; }
+  #screen-splash{ background:#F3FAF8; }
+  .splat{ position:absolute; border-radius:50%; transform:translate(-50%,-50%);
+    animation:splat-in .3s ease-out; }
+  @keyframes splat-in{ from{ transform:translate(-50%,-50%) scale(0);} to{ transform:translate(-50%,-50%) scale(1);} }
+  #splash-clear{ position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+    border:none; border-radius:999px; padding:12px 24px; font-size:1rem; font-weight:700;
+    background:var(--coral); color:#4A1C0C; cursor:pointer; z-index:5; }
+  #screen-splash .hint{ color:#2C6E7F; }
+
+  /* ---------- Sound Garden ---------- */
+  #screen-garden.active{ display:flex; }
+  #screen-garden{ background:radial-gradient(circle at 50% 30%, #FFF7EF, #FDE9F0 70%);
+    align-items:center; justify-content:center; }
+  #flower{ position:relative; width:320px; height:330px; }
+  #flower-core{ position:absolute; left:125px; top:125px; width:70px; height:70px; border-radius:50%;
+    background:#FFE9A8; box-shadow:0 0 0 6px rgba(255,255,255,.6); pointer-events:none; }
+  .petal{ position:absolute; width:90px; height:90px; border-radius:50%; border:none; cursor:pointer;
+    box-shadow:0 4px 10px rgba(60,20,40,.15); transition:transform .2s ease, box-shadow .2s ease; }
+  .petal.bloom{ transform:scale(1.28); box-shadow:0 0 18px 6px rgba(255,255,255,.8); }
+  #screen-garden .hint{ color:#5A1030; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <button id="back-btn">← Home</button>
+  <button id="sound-toggle" aria-label="Turn sound off">🔊</button>
+</div>
+
+<div id="home" class="view active">
+  <h1>Sensory Play</h1>
+  <p>Tap a card to start</p>
+  <div id="cards">
+    <button class="card" id="card-bubbles"><span class="icon">🫧</span><span class="label">Bubbles</span></button>
+    <button class="card" id="card-wrap"><span class="icon">🔵</span><span class="label">Bubble Wrap</span></button>
+    <button class="card" id="card-night"><span class="icon">🌌</span><span class="label">Night Sky</span></button>
+    <button class="card" id="card-splash"><span class="icon">🎨</span><span class="label">Color Splash</span></button>
+    <button class="card" id="card-garden"><span class="icon">🌸</span><span class="label">Sound Garden</span></button>
+  </div>
+</div>
+
+<div id="screen-bubbles" class="view">
+  <div id="bub-stage">
+    <div class="rays"></div>
+  </div>
+  <div class="hint" id="hint-bubbles">Tap a bubble</div>
+</div>
+
+<div id="screen-wrap" class="view">
+  <div id="wrap-grid"></div>
+  <button id="wrap-reset">Fresh sheet</button>
+</div>
+
+<div id="screen-night" class="view">
+  <div id="stars"></div>
+  <div class="hint" id="hint-night">Tap anywhere for fireflies</div>
+</div>
+
+<div id="screen-splash" class="view">
+  <div class="hint" id="hint-splash">Tap or drag to paint</div>
+  <button id="splash-clear">Clear painting</button>
+</div>
+
+<div id="screen-garden" class="view">
+  <div id="flower">
+    <div id="flower-core"></div>
+  </div>
+  <div class="hint" id="hint-garden">Tap the petals</div>
+</div>
+
+<script>
+/* ---------------- shared audio ---------------- */
+let soundOn = true;
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone({freqStart, freqEnd, duration=0.4, type='sine', volume=0.22}){
+  if(!soundOn) return;
+  ensureAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freqStart, now);
+  if(freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration * 0.4);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
+}
+const sfx = {
+  bubblePop: () => playTone({freqStart:420+Math.random()*260, freqEnd:(420+Math.random()*260)*1.6, duration:0.5, type:'sine'}),
+  wrapPop:   () => playTone({freqStart:180+Math.random()*40, duration:0.09, type:'square', volume:0.15}),
+  firefly:   () => playTone({freqStart:260+Math.random()*80, freqEnd:340, duration:0.7, type:'sine', volume:0.16}),
+  splat:     () => playTone({freqStart:520, freqEnd:180, duration:0.3, type:'sine', volume:0.18}),
+  note:      (f) => playTone({freqStart:f, duration:0.9, type:'triangle', volume:0.2})
+};
+
+/* ---------------- navigation ---------------- */
+const views = ['home','screen-bubbles','screen-wrap','screen-night','screen-splash','screen-garden'];
+const topbar = document.getElementById('topbar');
+const soundToggle = document.getElementById('sound-toggle');
+
+function showView(id){
+  views.forEach(v => document.getElementById(v).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  topbar.classList.toggle('show', id !== 'home');
+  stopAllActivities();
+  if(id === 'screen-bubbles') startBubbles();
+  if(id === 'screen-wrap') buildWrapGrid();
+  if(id === 'screen-night') startNight();
+}
+
+function stopAllActivities(){
+  bubbleTimeouts.forEach(t => clearTimeout(t));
+  bubbleTimeouts = [];
+  document.getElementById('bub-stage').querySelectorAll('.bubble').forEach(b => b.remove());
+}
+
+document.getElementById('card-bubbles').addEventListener('click', () => showView('screen-bubbles'));
+document.getElementById('card-wrap').addEventListener('click', () => showView('screen-wrap'));
+document.getElementById('card-night').addEventListener('click', () => showView('screen-night'));
+document.getElementById('card-splash').addEventListener('click', () => showView('screen-splash'));
+document.getElementById('card-garden').addEventListener('click', () => showView('screen-garden'));
+document.getElementById('back-btn').addEventListener('click', () => showView('home'));
+
+soundToggle.addEventListener('click', () => {
+  soundOn = !soundOn;
+  soundToggle.textContent = soundOn ? '🔊' : '🔇';
+  soundToggle.setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on');
+  if(soundOn) ensureAudio();
+});
+
+/* ---------------- Bubbles ---------------- */
+const bubbleColors = ['#BEE7E8', '#FFE3EE', '#FFF3C4', '#D6E9FF', '#D8F5E3'];
+let bubbleTimeouts = [];
+const bubStage = document.getElementById('bub-stage');
+const hintBubbles = document.getElementById('hint-bubbles');
+
+function spawnBubble(){
+  const b = document.createElement('button');
+  b.className = 'bubble';
+  b.setAttribute('aria-label', 'Pop the bubble');
+  const size = 55 + Math.random() * 90;
+  const left = Math.random() * (window.innerWidth - size);
+  const riseDur = 11 + Math.random() * 8;
+  const drift = (Math.random() - 0.5) * 160;
+  const color = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
+  b.style.width = size + 'px';
+  b.style.height = size + 'px';
+  b.style.left = left + 'px';
+  b.style.setProperty('--bc', color);
+  b.style.setProperty('--rise-dur', riseDur + 's');
+  b.style.setProperty('--drift', drift + 'px');
+  b.addEventListener('animationend', (e) => {
+    if(e.animationName === 'rise' && b.isConnected){
+      b.remove();
+      spawnBubble();
+    }
+  });
+  function pop(){
+    const rect = b.getBoundingClientRect();
+    for(let i=0;i<10;i++){
+      const p = document.createElement('div');
+      p.className = 'pop-burst';
+      const angle = (Math.PI*2*i)/10, dist = 30+Math.random()*30;
+      p.style.left = (rect.left+rect.width/2)+'px';
+      p.style.top = (rect.top+rect.height/2)+'px';
+      p.style.setProperty('--bx', Math.cos(angle)*dist+'px');
+      p.style.setProperty('--by', Math.sin(angle)*dist+'px');
+      bubStage.appendChild(p);
+      p.addEventListener('animationend', () => p.remove());
+    }
+    sfx.bubblePop();
+    hintBubbles.style.opacity = '0';
+    b.remove();
+    spawnBubble();
+  }
+  b.addEventListener('click', pop);
+  b.addEventListener('keydown', (e) => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pop(); } });
+  bubStage.appendChild(b);
+}
+function startBubbles(){
+  hintBubbles.style.opacity = '1';
+  for(let i=0;i<7;i++) bubbleTimeouts.push(setTimeout(spawnBubble, i*900));
+}
+
+/* ---------------- Bubble Wrap ---------------- */
+const wrapGrid = document.getElementById('wrap-grid');
+const hintWrap = document.querySelector('#screen-wrap .hint') || null;
+function buildWrapGrid(){
+  wrapGrid.innerHTML = '';
+  for(let i=0;i<40;i++){
+    const cell = document.createElement('button');
+    cell.className = 'cell';
+    cell.setAttribute('aria-label','Pop');
+    cell.addEventListener('click', () => {
+      if(cell.classList.contains('popped')) return;
+      cell.classList.add('popped');
+      sfx.wrapPop();
+    });
+    wrapGrid.appendChild(cell);
+  }
+}
+document.getElementById('wrap-reset').addEventListener('click', buildWrapGrid);
+
+/* ---------------- Night Sky ---------------- */
+const starsContainer = document.getElementById('stars');
+const nightScreen = document.getElementById('screen-night');
+const hintNight = document.getElementById('hint-night');
+let starsBuilt = false;
+function buildStars(){
+  if(starsBuilt) return;
+  starsContainer.style.position='absolute'; starsContainer.style.inset='0';
+  for(let i=0;i<70;i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = 1 + Math.random()*2.5;
+    s.style.width = size+'px'; s.style.height = size+'px';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*70+'%';
+    s.style.animationDuration = (2+Math.random()*3)+'s';
+    s.style.animationDelay = (Math.random()*3)+'s';
+    starsContainer.appendChild(s);
+  }
+  starsBuilt = true;
+}
+function startNight(){
+  buildStars();
+  hintNight.style.opacity = '1';
+}
+nightScreen.addEventListener('pointerdown', (e) => {
+  if(e.target.closest('#topbar')) return;
+  const fly = document.createElement('div');
+  fly.className = 'firefly';
+  const fx = (Math.random()-0.5)*160, fy = (Math.random()-0.5)*160;
+  fly.style.left = e.clientX+'px';
+  fly.style.top = e.clientY+'px';
+  fly.style.setProperty('--fx', fx+'px');
+  fly.style.setProperty('--fy', fy+'px');
+  fly.addEventListener('animationend', () => fly.remove());
+  nightScreen.appendChild(fly);
+  sfx.firefly();
+  hintNight.style.opacity = '0';
+});
+
+/* ---------------- Color Splash ---------------- */
+const splashScreen = document.getElementById('screen-splash');
+const hintSplash = document.getElementById('hint-splash');
+const splashColors = ['#FF8C69','#6FA8DC','#F2A6C5','#8FCB9B','#FFD98E','#B39DDB'];
+splashScreen.addEventListener('pointerdown', (e) => {
+  if(e.target.closest('#topbar') || e.target.id === 'splash-clear') return;
+  const s = document.createElement('div');
+  s.className = 'splat';
+  const size = 30 + Math.random()*70;
+  s.style.width = size+'px'; s.style.height = size+'px';
+  s.style.left = e.clientX+'px'; s.style.top = e.clientY+'px';
+  s.style.background = splashColors[Math.floor(Math.random()*splashColors.length)];
+  splashScreen.insertBefore(s, document.getElementById('splash-clear'));
+  sfx.splat();
+  hintSplash.style.opacity = '0';
+});
+document.getElementById('splash-clear').addEventListener('click', () => {
+  splashScreen.querySelectorAll('.splat').forEach(s => s.remove());
+  hintSplash.style.opacity = '1';
+});
+
+/* ---------------- Sound Garden ---------------- */
+const flower = document.getElementById('flower');
+const hintGarden = document.getElementById('hint-garden');
+const petalDefs = [
+  {x:115,y:5,   color:'#FFADAD', freq:261.63},
+  {x:210,y:60,  color:'#FFD6A5', freq:293.66},
+  {x:210,y:170, color:'#FDFFB6', freq:329.63},
+  {x:115,y:225, color:'#CAFFBF', freq:392.00},
+  {x:20, y:170, color:'#9BF6FF', freq:440.00},
+  {x:20, y:60,  color:'#BDB2FF', freq:523.25}
+];
+petalDefs.forEach(def => {
+  const petal = document.createElement('button');
+  petal.className = 'petal';
+  petal.style.left = def.x+'px';
+  petal.style.top = def.y+'px';
+  petal.style.background = def.color;
+  petal.setAttribute('aria-label','Play note');
+  petal.addEventListener('click', () => {
+    petal.classList.add('bloom');
+    setTimeout(() => petal.classList.remove('bloom'), 350);
+    sfx.note(def.freq);
+    hintGarden.style.opacity = '0';
+  });
+  flower.appendChild(petal);
+});
+
+/* ---------------- init ---------------- */
+showView('home');
+</script>
+</body>
+</html>
